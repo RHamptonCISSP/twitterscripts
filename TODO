@@ -1,0 +1,40 @@
+Use configuration file for:
+    RHamptonCISSP
+    geo location words to match
+    wordsNotToMatch
+
+Hashtag density check in tweets when identifying people to block
+
+SQLify
+    Whitelisted users
+    Queue for usetwitter script
+    Change deletion from database to column for inactive so scripts do not grind through the same people
+
+Fix variable naming convention
+
+Arguments / help for every file
+
+Fix warnings when parsing arguments
+
+Copyright statement
+
+README
+
+Trap SQLite errors
+
+Flip logging level to info.  Figure out how to do via config file instead of with DEBUG variable 
+
+Check into github?
+
+Recursive usetwitter and autoFollow script
+
+The creation of a Cursor in retweet.py raises this error when the token is invalid or expired.  The error cannot be trapped in try-catch and is probably a failure to handle properly in Tweepy
+tweepy.error.TweepError: Twitter error response: status code = 401
+
+Handle keyboard interrupts properly.  Tried these things in autoFollow.py and still got Tracebacks.  https://stackoverflow.com/questions/21120947/catching-keyboardinterrupt-in-python-during-program-shutdown
+
+trying to follow @homeofguinness got this error trying to follow
+tweepy.error.TweepError: [{u'timestamp': u'848923993765', u'message': u'User mus
+t be age screened to perform this action.', u'code': 250}]
+
+Figure out 'reach' of people I follow.  K-nearest neighbor.  Maybe tie in geo info sparse/poisoned as it is
