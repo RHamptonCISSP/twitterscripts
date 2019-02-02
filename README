@@ -1,0 +1,84 @@
+Version: 1.0
+Date: 2019/02/02
+
+All scripts written/tested using Python 2.7.10
+
+The following dependencies must be met:
+import argparse
+import datetime
+import json
+import logging
+import random
+import re
+import signal
+import sqlite3
+import sys
+import time
+import tweepy
+from requests.exceptions import Timeout, ConnectionError
+from requests.packages.urllib3.exceptions import ReadTimeoutError
+from sets import Set
+from sqlite3 import IntegrityError
+from tweepy.error import TweepError
+
+To start with a clean slate:
+rm *.db
+rm *.txt
+python initialize.py
+mv twitterbot.config.sample twitterbot.config
+
+-------begin notes on twitterbot.config------
+You'll need to create keys to be able to use the twitter API.  Those go in consume_key, consumer_secret, access_token and access_token_secret fields in twitterbt.config.  Better tutorials on that elsewhere on the net.  Google them.  Do not upload this unredacted config file to github or other searchable repository.  Protect your keys even when screenshotting.
+
+Other configuration settings in that file are:
+safeList - a list of users to never unfollow when using unfriend.py.  You can still unfollow them using unfollow.py or the process used with findUsersToBlock.py
+Note, if you follow people manually instead of via these python scripts they are not going to be in the twitter.db database and are automatically 'safe' from being unfollowed - at least until you take some action using python or manually to add the person to the db.
+
+wordsToMatchInTweets - these words are lowercased and compared to lowercased text in tweets being investigated.  A few scripts look at other users' tweets and see if they are worth following or unfollowing or blocking or favoriting based on if they are actively tweeting words you care about. The retweet script also uses this as the basis of deciding what to retweet.  I have found that favoriting and retweeting is hit or miss because of shorter words that end up being found in URL strings or used in unexpected ways.  Longer words are better here.
+
+wordsToMatchInProfiles - again lower case comparison between these words and another users' profile description are used to decide whether a person is worthy of being followed, or even if that person has any business following us (in which case we block them).  Shorter words work better here than when matching tweets.
+
+mysql is unused.  Placeholder for future code compatibility.
+
+other is unused.  This was part of the JSON from some other script I copied when setting up the .config file
+
+-------end twitterbot.config------
+
+python getUsersIFollow.py
+This will start iterating over the users following your account.  Right now RHamptonCISSP is hardcoded in the script as being the target of this action. check progress by running python userscan.py with the line on rowcount of users unblocked.  This runs slowly because it pauses for 1 minute every 12 users to avoid timeouts.  You can interrupt it at any time to move on to the next step.
+
+python usetwitter.py -u CISAgov
+This script iterates over, for example, the users following the CISAgov profile who are probably interested in infosec and national security.  The output is list.txt which contains Screen Names and Descriptions.  This script can be interrupted at anytime to move on to the next step.  Since thousands of users follow CISAgov, it can take a long time to run.  There is code in this python script, and all the others, too handle the typical twitter timeouts and errors so your application won't get blocked.  I am on the fifth application since the prior four were flagged while I figured out.  Again, you'll need to replace RHamptonCISSP in any of these scrips until I pull it out and make it part of twitterbot.config
+
+python autoFollow.py
+This script uses list.txt as the basis of following users.  Timeouts are handled.  Again replace RHamptonCISSP in the script.  You can run userscan.py to see that more rows have been added to the database, or even begin to query specific users at this point. 
+
+python userscan.py
+Used for running queries against the SQLlite database.  Uncomment/comment what you need.  Is not multipdb aware.  Maybe someday I will turn this into a menu/arguement driven script. Don't hold your breath.
+
+
+------begin daily use----
+At this point you are ready to start using the database on a daily basis.  Here are the descriptions of the other scripts and what they do.
+
+python blockUser.py -u jack
+Script to unfriend and block a particular user.  Right now, blocks are not tracked.  Unfollows completely remove the row for the user from the db.  In the future I may add additional fields to track whether this activity has happened by adding a boolean column for block and unfollow and timestamp fields for when that happened.  For now, KISS is the idea.  No offense meant to Jack.  He is just a convenient name to use as an example.
+
+python findUsersToBlock.py -u RHamptonCISSP
+The target user, me, is hardcoded.  Again, update the script to use your username.  If no argument given, will default to you. The purpose of this script is to look through the list of people following your account, and decide whether or not they are a bot.  A few of these tests have to do with whether their interests align with your own.  I personally only want people following me who are likely to retweet and interact with me.  I am not interested in an artificially high follower count. 
+
+IMPORTANT - The script outputs to a text file potentialblocklist.txt
+To actually block the users, do something like this:
+grep Screen potentialblocklist.txt|cut -d' ' -f3 |while read -r line;do python blockUser.py -u "$line";done;
+If you're using Windows don't come at me son, I got 99 problems and your OS ain't one.
+
+I was debugging some annoying errors with the -u argument flag here and I think I've licked them, but the code hasn't been ported to other scripts. If you notice this script is laid out a little differently, that is why.
+
+python followUser.py -u RHamptonCISSP
+Be sure to follow me on twitter.  ;-)
+
+python unfriend.py
+This script looks through the list of people in the database and tries to find those users who may no longer align with our interests, or who are no longer an active twitter participant.  It tries to unfriend about 20 users per go, again handling the annoying timeouts.  Also, does double duty by looking for tweets that could be interesting and favoriting 5 of those.  This increases interaction with the community you have built up and also may give you fodder for the retweet script I wrote, but again, those shorter wordsToMatch cause interesting side effects here.  Also, the randomization does not work as expected.  Some refactoring is in order here.
+
+python retweet.py
+Looks through the list of things you have recently favorited (to the limits of the API) and again tries to randomly retweet from this list.  Doesn't work as well as I would like.  Review what it does or your users may be puzzled, or worse - think you are a bot. The script does not unfavorite the things that are retweeted.  Personally, once I retweet something I usually unfavorite it, but I did not make the script work this way because that is probably my own quirky way of using twitter.
+
